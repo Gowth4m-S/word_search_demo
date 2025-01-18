@@ -1,6 +1,5 @@
 'use client'
 import DifficultyChoose from "./_components/DifficultyChoose";
-import WordSearch from "./_components/WordSearch";
 
 
 export default function Home() {

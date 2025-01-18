@@ -1,20 +1,22 @@
 'use client'
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { useWordSearchStore } from "../store";
 
-const Grid = ({ grid, words, onWordFound, gridSize }) => {
+const Grid = memo(({ onWordFound, gridSize }) => {
   const [startCell, setStartCell] = useState(null);
   const [endCell, setEndCell] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const gameData = useWordSearchStore(s => s.gameData)
   const updateGameData = useWordSearchStore(s => s.updateGameData)
+  const grid = gameData.grids
+  const words = gameData.words
   const [foundWordsStyles, setFoundWordsStyles] = useState(gameData.foundWordsStyles ?? []);
 
   const calculateCellSize = () => {
     const screenWidth = window.innerWidth;
     const baseCellSize = 40;
     const maxColumns = gridSize;
-    return Math.min(baseCellSize, Math.floor(screenWidth / maxColumns));
+    return Math.min(baseCellSize, Math.floor(screenWidth / maxColumns) - 2);
   };
 
   const [cellSize, setCellSize] = useState(calculateCellSize);
@@ -66,7 +68,8 @@ const Grid = ({ grid, words, onWordFound, gridSize }) => {
   const handleMouseUp = () => {
     if (startCell && endCell) {
       const selectedWord = calculateWord(startCell, endCell, grid);
-      if (words.includes(selectedWord)) {
+      const foundWords = gameData.foundWords
+      if (words.includes(selectedWord) && !foundWords.includes(selectedWord)) {
         const style = getSelectionStyle();
         setFoundWordsStyles((prev) => [
           ...prev,
@@ -240,7 +243,7 @@ const Grid = ({ grid, words, onWordFound, gridSize }) => {
 
   return (
     <div
-      className="relative bg-white grid"
+      className="relative bg-white grid shadow-2xl rounded-xl"
       style={{
         gridTemplateColumns: `repeat(${gridSize}, ${cellSize}px)`,
         // gridAutoRows: `${cellSize}px`,
@@ -295,7 +298,7 @@ const Grid = ({ grid, words, onWordFound, gridSize }) => {
       ))}
     </div>
   );
-};
+});
 
 export default Grid;
 
