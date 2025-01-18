@@ -1,12 +1,40 @@
-import React, { useState } from "react";
+'use client'
+import { useEffect, useState } from "react";
+import { useWordSearchStore } from "../store";
 
 const Grid = ({ grid, words, onWordFound, gridSize }) => {
   const [startCell, setStartCell] = useState(null);
   const [endCell, setEndCell] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [foundWords, setFoundWords] = useState([]);
+  const gameData = useWordSearchStore(s => s.gameData)
+  const updateGameData = useWordSearchStore(s => s.updateGameData)
+  const [foundWordsStyles, setFoundWordsStyles] = useState(gameData.foundWordsStyles ?? []);
 
-  const cellSize = 40; 
+  const calculateCellSize = () => {
+    const screenWidth = window.innerWidth;
+    const baseCellSize = 40;
+    const maxColumns = gridSize;
+    return Math.min(baseCellSize, Math.floor(screenWidth / maxColumns));
+  };
+
+  const [cellSize, setCellSize] = useState(calculateCellSize);
+
+  useEffect(() => {
+    if (gameData.difficultyChoosen) {
+      setFoundWordsStyles(gameData.foundWordsStyles)
+    }
+
+  }, [gameData])
+
+
+  useEffect(() => {
+    const handleResize = () => {
+      const newCellSize = calculateCellSize();
+      setCellSize(newCellSize);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const getCellFromTouch = (e) => {
     const touch = e.touches[0];
@@ -40,7 +68,7 @@ const Grid = ({ grid, words, onWordFound, gridSize }) => {
       const selectedWord = calculateWord(startCell, endCell, grid);
       if (words.includes(selectedWord)) {
         const style = getSelectionStyle();
-        setFoundWords((prev) => [
+        setFoundWordsStyles((prev) => [
           ...prev,
           {
             word: selectedWord,
@@ -48,6 +76,15 @@ const Grid = ({ grid, words, onWordFound, gridSize }) => {
             color: getRandomColor(),
           },
         ]);
+        updateGameData({
+          foundWordsStyles: [
+            ...foundWordsStyles,
+            {
+            word: selectedWord,
+            style,
+            color: getRandomColor()
+          }]
+        })
         onWordFound(selectedWord, [startCell, endCell]);
       }
     }
@@ -57,7 +94,6 @@ const Grid = ({ grid, words, onWordFound, gridSize }) => {
   };
 
   const handleTouchStart = (e) => {
-    e.preventDefault()
     const cell = getCellFromTouch(e);
     if (cell) {
       setStartCell(cell);
@@ -67,7 +103,6 @@ const Grid = ({ grid, words, onWordFound, gridSize }) => {
   };
 
   const handleTouchMove = (e) => {
-    e.preventDefault()
     if (!isDragging || !startCell) return;
     const cell = getCellFromTouch(e);
     if (cell) handleMouseMove(cell.row, cell.col);
@@ -116,28 +151,34 @@ const Grid = ({ grid, words, onWordFound, gridSize }) => {
       // topleft to bottom right
       x2 += cellSize / 2
       y2 += cellSize / 2
-      x1 += cellSize / 2
+      x1 -= 0
+      y1 -= cellSize / 2
       angle = 45
     }
     else if (startCol > endCol && startRow > endRow) {
       // bottom right to top left
       y2 -= cellSize / 2
-      x1 += cellSize / 2
       x2 += cellSize / 2
+      // x1 += cellSize / 2
+      x1 += cellSize
+      y1 += cellSize / 2
       angle = 225
     }
     else if (startCol > endCol && startRow < endRow) {
-      // bottom left to top right
+      // top right to bottom left
       y2 += cellSize / 2
-      x1 += cellSize / 2
       x2 += cellSize / 2
+      // x1 += cellSize / 2
+      x1 += cellSize
+      y1 -= 20
       angle = 135
     }
     else if (startCol < endCol && startRow > endRow) {
-      // top rigth to bottom left
+      // bottom left to top right
       y2 -= cellSize / 2
-      x1 += cellSize / 2
       x2 += cellSize / 2
+      // x1 += cellSize / 2
+      y1 += cellSize / 2
       angle = 315
     }
     else if (startCol < endCol) {
@@ -147,7 +188,6 @@ const Grid = ({ grid, words, onWordFound, gridSize }) => {
       angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
     }
     else if (startCol > endCol) {
-      console.log('horizontal right to left')
       // right to left
       x1 += cellSize
       angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
@@ -155,7 +195,6 @@ const Grid = ({ grid, words, onWordFound, gridSize }) => {
     else if (startRow < endRow) {
       // vertical
       // top to bottom
-      console.log('vertical top to bottom')
       y1 -= cellSize / 2
       y2 += cellSize / 2
       x1 += cellSize / 2
@@ -163,7 +202,6 @@ const Grid = ({ grid, words, onWordFound, gridSize }) => {
       angle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI);
     }
     else if (startRow > endRow) {
-      console.log('vertical bottom to top')
       // bottom to top
       y1 += cellSize / 2
       y2 -= cellSize / 2
@@ -204,22 +242,31 @@ const Grid = ({ grid, words, onWordFound, gridSize }) => {
     <div
       className="relative bg-white grid"
       style={{
-        gridTemplateColumns: `repeat(${gridSize}, minmax(0,1fr))`,
+        gridTemplateColumns: `repeat(${gridSize}, ${cellSize}px)`,
+        // gridAutoRows: `${cellSize}px`,
       }}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
       onTouchEnd={handleTouchEnd}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
     >
       {grid.map((row, rowIndex) =>
         row.map((letter, colIndex) => (
           <div
             key={`${rowIndex}-${colIndex}`}
             data-cell={`${rowIndex}-${colIndex}`}
-            className="w-10 h-10 flex items-center justify-center font-bold text-lg border cursor-pointer select-none bg-gray-100"
+            className="flex items-center justify-center font-bold cursor-pointer select-none"
+            style={{
+              width: `${cellSize}px`,
+              height: `${cellSize}px`,
+              fontSize: `${cellSize * 0.8}px`,
+              // lineHeight: `${fontSize}px`
+            }}
             onMouseDown={() => handleMouseDown(rowIndex, colIndex)}
             onMouseEnter={() => handleMouseMove(rowIndex, colIndex)}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
+          // onTouchStart={handleTouchStart}
+          // onTouchMove={handleTouchMove}
           >
             {letter}
           </div>
@@ -227,18 +274,22 @@ const Grid = ({ grid, words, onWordFound, gridSize }) => {
       )}
 
       <div
-        className="absolute bg-black/30 h-10 z-30 rounded-full pointer-events-none"
-        style={getSelectionStyle()}
+        className="absolute bg-black/30 z-30 rounded-full pointer-events-none"
+        style={{
+          ...getSelectionStyle(),
+          height: `${cellSize}px`,
+        }}
       ></div>
 
-      {foundWords.map((found, index) => (
+      {foundWordsStyles.map((found, index) => (
         <div
           key={index}
-          className="absolute h-10 z-20 rounded-full pointer-events-none"
+          className="absolute z-20 rounded-full pointer-events-none"
           style={{
             ...found.style,
             backgroundColor: found.color,
             opacity: 0.5,
+            height: `${cellSize}px`,
           }}
         ></div>
       ))}
