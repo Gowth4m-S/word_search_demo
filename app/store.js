@@ -7,6 +7,7 @@ const initalGameData = {
   difficultyChoose: false,
   foundWords: [],
   foundWordsStyles: [],
+  gridSize: 7,
   grids: [],
   words: [],
 }
@@ -15,12 +16,12 @@ export const useWordSearchStore = create((set, get) => ({
   gameData: initalGameData,
   gameWon: false,
   gameTime: 0,
-  createGame: (difficulty, words, grids) => {
-    console.log(words)
+  createGame: (difficulty, words, grids, gridSize) => {
     const createGameData = {
       _id: uuidv4(),
       difficulty,
       difficultyChoosen: true,
+      gridSize: gridSize,
       words,
       grids,
       foundWords: [],

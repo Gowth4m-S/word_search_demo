@@ -164,7 +164,7 @@ export default function DifficultyChoose() {
     const gridSizeget = getGridSize(difficulty)
     const [grids, updatedWords] = generateGrid(wordBank[difficulty], gridSizeget)
     setGridSize(gridSizeget)
-    createGame(difficulty, updatedWords, grids)
+    createGame(difficulty, updatedWords, grids , gridSizeget)
   }
   useEffect(() => {
     fetchGameData()
@@ -201,6 +201,14 @@ export default function DifficultyChoose() {
       timeRef.current = timeElapsed
     }
   }, [timeElapsed])
+
+  useEffect(() => {
+    if(gameData.difficultyChoosen){
+      setGridSize(gameData.gridSize)
+    }
+
+  },[gameData.gridSize])
+  // console.log('hi')
 
 
   return (
