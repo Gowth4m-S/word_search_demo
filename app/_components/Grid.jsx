@@ -1,5 +1,5 @@
 'use client'
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { useWordSearchStore } from "../store";
 
 const Grid = memo(({ onWordFound, gridSize }) => {
@@ -11,6 +11,7 @@ const Grid = memo(({ onWordFound, gridSize }) => {
   const grid = gameData.grids
   const words = gameData.words
   const [foundWordsStyles, setFoundWordsStyles] = useState(gameData.foundWordsStyles ?? []);
+  const containerRef = useRef(null)
 
   const calculateCellSize = () => {
     const screenWidth = window.innerWidth;
@@ -37,6 +38,78 @@ const Grid = memo(({ onWordFound, gridSize }) => {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleTouchStart = (e) => {
+      e.preventDefault();
+      const cell = getCellFromTouch(e);
+      if (cell) {
+        setStartCell(cell);
+        setEndCell(null);
+        setIsDragging(true);
+      }
+    };
+
+    const handleTouchMove = (e) => {
+      e.preventDefault();
+      if (!isDragging || !startCell) return;
+      const cell = getCellFromTouch(e);
+      if (cell) handleMouseMove(cell.row, cell.col);
+    };
+
+    const handleTouchEnd = (e) => {
+      e.preventDefault();
+      handleMouseUp();
+    };
+    const handleMouseUp = () => {
+      if (startCell && endCell) {
+        const selectedWord = calculateWord(startCell, endCell, grid);
+        const foundWords = gameData.foundWords
+        if (words.includes(selectedWord) && !foundWords.includes(selectedWord)) {
+          const style = getSelectionStyle();
+          setFoundWordsStyles((prev) => [
+            ...prev,
+            {
+              word: selectedWord,
+              style,
+              color: getRandomColor(),
+            },
+          ]);
+          updateGameData({
+            foundWordsStyles: [
+              ...foundWordsStyles,
+              {
+                word: selectedWord,
+                style,
+                color: getRandomColor()
+              }]
+          })
+          onWordFound(selectedWord, [startCell, endCell]);
+        }
+      }
+      setStartCell(null);
+      setEndCell(null);
+      setIsDragging(false);
+    };
+
+    container.addEventListener('touchstart', handleTouchStart, { passive: false });
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchend', handleTouchEnd, { passive: false });
+    container.addEventListener('mouseup', handleMouseUp, { passive: false });
+    container.addEventListener('mouseleave', handleMouseUp, { passive: false });
+
+    return () => {
+      container.removeEventListener('touchstart', handleTouchStart, { passive: false });
+      container.removeEventListener('touchmove', handleTouchMove, { passive: false });
+      container.removeEventListener('touchend', handleTouchEnd, { passive: false });
+      container.removeEventListener('mouseup', handleMouseUp, { passive: false });
+      container.removeEventListener('mouseleave', handleMouseUp, { passive: false });
+    };
+  }, [isDragging, startCell, endCell]); // Adding dependencies to ensure correct behavior
+
 
   const getCellFromTouch = (e) => {
     const touch = e.touches[0];
@@ -65,55 +138,58 @@ const Grid = memo(({ onWordFound, gridSize }) => {
     }
   };
 
-  const handleMouseUp = () => {
-    if (startCell && endCell) {
-      const selectedWord = calculateWord(startCell, endCell, grid);
-      const foundWords = gameData.foundWords
-      if (words.includes(selectedWord) && !foundWords.includes(selectedWord)) {
-        const style = getSelectionStyle();
-        setFoundWordsStyles((prev) => [
-          ...prev,
-          {
-            word: selectedWord,
-            style,
-            color: getRandomColor(),
-          },
-        ]);
-        updateGameData({
-          foundWordsStyles: [
-            ...foundWordsStyles,
-            {
-            word: selectedWord,
-            style,
-            color: getRandomColor()
-          }]
-        })
-        onWordFound(selectedWord, [startCell, endCell]);
-      }
-    }
-    setStartCell(null);
-    setEndCell(null);
-    setIsDragging(false);
-  };
+  // const handleMouseUp = () => {
+  //   if (startCell && endCell) {
+  //     const selectedWord = calculateWord(startCell, endCell, grid);
+  //     const foundWords = gameData.foundWords
+  //     if (words.includes(selectedWord) && !foundWords.includes(selectedWord)) {
+  //       const style = getSelectionStyle();
+  //       setFoundWordsStyles((prev) => [
+  //         ...prev,
+  //         {
+  //           word: selectedWord,
+  //           style,
+  //           color: getRandomColor(),
+  //         },
+  //       ]);
+  //       updateGameData({
+  //         foundWordsStyles: [
+  //           ...foundWordsStyles,
+  //           {
+  //             word: selectedWord,
+  //             style,
+  //             color: getRandomColor()
+  //           }]
+  //       })
+  //       onWordFound(selectedWord, [startCell, endCell]);
+  //     }
+  //   }
+  //   setStartCell(null);
+  //   setEndCell(null);
+  //   setIsDragging(false);
+  // };
 
-  const handleTouchStart = (e) => {
-    const cell = getCellFromTouch(e);
-    if (cell) {
-      setStartCell(cell);
-      setEndCell(null);
-      setIsDragging(true);
-    }
-  };
-
-  const handleTouchMove = (e) => {
-    if (!isDragging || !startCell) return;
-    const cell = getCellFromTouch(e);
-    if (cell) handleMouseMove(cell.row, cell.col);
-  };
-
-  const handleTouchEnd = () => {
-    handleMouseUp();
-  };
+  // const handleTouchStart = (e) => {
+  //   e.preventDefault()
+  //   const cell = getCellFromTouch(e);
+  //   if (cell) {
+  //     setStartCell(cell);
+  //     setEndCell(null);
+  //     setIsDragging(true);
+  //   }
+  // };
+  //
+  // const handleTouchMove = (e) => {
+  //   e.preventDefault()
+  //   if (!isDragging || !startCell) return;
+  //   const cell = getCellFromTouch(e);
+  //   if (cell) handleMouseMove(cell.row, cell.col);
+  // };
+  //
+  // const handleTouchEnd = (e) => {
+  //   e.preventDefault()
+  //   handleMouseUp();
+  // };
 
   const calculateWord = (start, end, grid) => {
     const { row: startRow, col: startCol } = start;
@@ -243,16 +319,17 @@ const Grid = memo(({ onWordFound, gridSize }) => {
 
   return (
     <div
+      ref={containerRef}
       className="relative bg-white grid shadow-2xl rounded-xl"
       style={{
         gridTemplateColumns: `repeat(${gridSize}, ${cellSize}px)`,
         // gridAutoRows: `${cellSize}px`,
       }}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      onTouchEnd={handleTouchEnd}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
+    // onMouseUp={handleMouseUp}
+    // onMouseLeave={handleMouseUp}
+    // onTouchEnd={handleTouchEnd}
+    // onTouchStart={handleTouchStart}
+    // onTouchMove={handleTouchMove}
     >
       {grid.map((row, rowIndex) =>
         row.map((letter, colIndex) => (
